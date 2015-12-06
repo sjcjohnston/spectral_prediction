@@ -146,19 +146,14 @@ class HydraNet():
 
 	def mini_nets_predict(self, X):
 		# initialize an output matrix to be populated by mininet predictions
-		print "Starting mini predictions"
-		print X.shape[0]
-		print self.output_size
 		mini_net_predictions = np.zeros((X.shape[0], self.output_size))
 		for j, mini_net in enumerate(self.mininets):
-			print "predicting mininet ", j
 			# use a mininet to predict a value to each training instance
 			predictions = mini_net.predict(X)
 			# assign predictions of mininet to corresponding output matrix column
 			mini_net_predictions[:,j] = predictions[:,0]
 		# TODO: Why are there nans here?
-		print mini_net_predictions, type(mini_net_predictions)
-		# mini_net_predictions = np.nan_to_num(mini_net_predictions)
+		mini_net_predictions = np.nan_to_num(mini_net_predictions)
 		return mini_net_predictions
 
 	def predict(self,X):
@@ -178,8 +173,8 @@ class NeuralNetHead():
 
 	def load_data(self):
 		loadfiles = get_input.Get_Input(self.path,self.lowpass,self.train_perc)
-		self.train_x = loadfiles.training_in[:20,:]
-		self.train_y = loadfiles.training_out[:20,:]
+		self.train_x = loadfiles.training_in#[:20,:]
+		self.train_y = loadfiles.training_out#[:20,:]
 		self.test_x = loadfiles.testing_in
 		self.test_y = loadfiles.testing_out
 
