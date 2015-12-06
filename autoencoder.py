@@ -17,8 +17,10 @@ class Autoencoder():
 	def __init__(self):
 		pass
 
-	def initialize_net(self,input_dim, hidden_num, output_dim, verbosity=True):
-		print "Initializing with {0} input nodes, {1} hidden nodes, and {2} output nodes.".format(input_dim,hidden_num,output_dim)
+	def initialize_net(self,input_dim, hidden_num, output_dim, verbose=True):
+		self.verbose = verbose
+		if self.verbose:
+			print "Initializing with {0} input nodes, {1} hidden nodes, and {2} output nodes.".format(input_dim,hidden_num,output_dim)
 		self.nn = NeuralNet(layers=[  # three layers: one hidden layer
 		('input', layers.InputLayer),
 		
@@ -46,12 +48,13 @@ class Autoencoder():
 		update_momentum=0.9,
 
 		regression=True,  # flag to indicate we're dealing with regression problem
-		max_epochs=100,  # we want to train this many epochs
-		verbose=1 if verbosity else 0,
+		max_epochs=30,  # we want to train this many epochs
+		verbose=1 if verbose else 0,
 		)
 
 	def fit(self,x,y):
-		print "Using {0} training examples.".format(x.shape[1])
+		if self.verbose:
+			print "Using {0} training examples.".format(x.shape[0])
 		self.nn.fit(x, y)
 
 
