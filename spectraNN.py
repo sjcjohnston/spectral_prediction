@@ -13,10 +13,109 @@
 import os, sys
 import math
 import numpy as np 
-# import tensorflow as tf 
 import get_spectraNN_input as get_input
+from lasagne import layers
+from lasagne import updates
+from nolearn.lasagne import NeuralNet
 import autoencoder
 # import predict
+
+class NetFactory():
+
+	mini_savename = '{}_mini_weights'
+	papa_savename = '{}_papa_weights'
+
+	@classmethod
+	def build_mini_net(cls, input_size=47, hidden_size=3, output_size=1, verbose=True):
+		# returns a NeuralNet instance
+		if verbose:
+			print "Initializing with {0} input nodes, {1} hidden nodes, and {2} output nodes.".format(input_size,hidden_size,output_size)
+		return NeuralNet(layers=[  # three layers: one hidden layer
+		('input', layers.InputLayer),
+		('hidden1', layers.DenseLayer),
+		('output', layers.DenseLayer),
+		],
+		# layer parameters:
+		input_shape=(None, input_size),  # 96x96 input pixels per batch
+		hidden1_num_units=hidden_size,  # number of units in hidden layer
+		# hidden2_num_units=hidden_num,
+		# hidden3_num_units=hidden_num,
+		output_nonlinearity=None,  # output layer uses identity function
+		output_num_units=output_size,  # 30 target values
+		# dropout1_p=0.2,
+		# dropout2_p=0.5,
+
+		# optimization method:
+		update=updates.nesterov_momentum,
+		update_learning_rate=0.01,
+		update_momentum=0.9,
+
+		regression=True,  # flag to indicate we're dealing with regression problem
+		max_epochs=30,  # we want to train this many epochs
+		verbose=1 if verbose else 0,
+		)
+
+	@classmethod
+	def build_papa_net(cls, input_size, hidden_size, output_size, verbose=True):
+		# returns a NeuralNet instance
+		if verbose:
+			print "Initializing with {0} input nodes, {1} hidden nodes, and {2} output nodes.".format(input_size,hidden_size,output_size)
+		return NeuralNet(layers=[  # three layers: one hidden layer
+		('input', layers.InputLayer),
+		('hidden1', layers.DenseLayer),
+		('output', layers.DenseLayer),
+		],
+		# layer parameters:
+		input_shape=(None, input_size),  # 96x96 input pixels per batch
+		hidden1_num_units=hidden_size,  # number of units in hidden layer
+		# hidden2_num_units=hidden_num,
+		# hidden3_num_units=hidden_num,
+		output_nonlinearity=None,  # output layer uses identity function
+		output_num_units=output_size,  # 30 target values
+		# dropout1_p=0.2,
+		# dropout2_p=0.5,
+
+		# optimization method:
+		update=updates.nesterov_momentum,
+		update_learning_rate=0.01,
+		update_momentum=0.9,
+
+		regression=True,  # flag to indicate we're dealing with regression problem
+		max_epochs=30,  # we want to train this many epochs
+		verbose=1 if verbose else 0,
+		)
+
+	@classmethod
+	def save(cls, nn, fname):
+		# saves weights and params using fname as filename substring
+		nn.save_params_to(fname)
+		print "Saving {}".format(fname)
+
+	@classmethod
+	def load(cls, nn, fname):
+		# loads and returns a NeuralNet from the two files
+		nn.load_params_from(fname)
+		return nn
+
+	# @classmethod
+	# def list_net_files(cls, d):
+	# 	# glob files in some directory and return them sorted??
+	
+	#sorted(,lambda x: (int(x.split("_")[0]), "weights" in x.split("_")[-1]))
+	@classmethod
+	def load_mini_nets(cls, d):
+		weightfiles = [f for f in os.listdir(d) if f.endswith('weights')]
+		print weightfiles
+		fnames = sorted(weightfiles, key=lambda x: int(x.split('_')[0]))
+		print "Fnames", fnames
+		return [cls.load(cls.build_mini_net(), f) for f in fnames if 'mini' in f]
+
+class HydraNet():
+
+	def __init__(self, papanet, mininets):
+		self.papanet = papanet if type(papanet) is NeuralNet else NetFactory.load(papanet)
+		self.mininets = mininets if type(mininets) is list else NetFactory.load_mini_nets(mininets)
+		pass
 
 class NeuralNetHead():
 
@@ -51,17 +150,18 @@ class NeuralNetHead():
 		for i in range(self.train_y.shape[1]):
 			print i
 			# Initialize new Neural Net to predict single column value
-			mn = autoencoder.Autoencoder()
+			mn = NetFactory.build_mini_net()#autoencoder.Autoencoder()
 			# Reshape the test data to represent a single column
 			new_labels = self.train_y[:,i]
 			# Training
 			print("new_labels dims:\t{}".format(new_labels.shape))
 			print("len(X):\t{}".format(len(self.train_x)))
 			print("len(y):\t{}".format(len(new_labels)))
-			mn.initialize_net(self.train_x.shape[1], hidden_size, 1, verbose=True)#self.train_y.shape[1])
+			# mn.initialize_net(self.train_x.shape[1], hidden_size, 1, verbose=True)#self.train_y.shape[1])
 			mn.fit(self.train_x, new_labels)#self.train_y[:,:])
 			# Store the trained net
 			nn_list.append(mn)
+			NetFactory.save(mn, NetFactory.mini_savename.format(i))
 		# initialize an output matrix to be populated by mininet predictions
 		mini_net_predictions = np.zeros(self.train_y.shape)
 		print "Making mininet predictions"
@@ -84,7 +184,6 @@ class NeuralNetHead():
 		print "Big Papa Training Results:\n\n"
 		big_net.fit(mini_net_predictions, self.train_y)
 		# ae.predict()
-
 
 
 	def main(self):
