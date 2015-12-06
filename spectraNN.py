@@ -13,7 +13,7 @@
 import os, sys
 import math
 import numpy as np 
-import tensorflow as tf 
+# import tensorflow as tf 
 import get_spectraNN_input as get_input
 import autoencoder
 # import predict
@@ -42,13 +42,17 @@ class NeuralNetHead():
 		self.b2 = tf.Variable(tf.random_normal([1,self.output_size], stddev=math.sqrt(float(6) / float(self.visible_size * 2))), name="W1")
 
 	def call_autoencoder(self):
-		ae = autoencoder.Autoencoder(self.W1,self.W2,self.b1,self.b2,self.train_x,self.train_y,self.test_x,self.test_y)
-		ae.train()
-		ae.predict()
+		# ae = autoencoder.Autoencoder(self.W1,self.W2,self.b1,self.b2,self.train_x,self.train_y,self.test_x,self.test_y)
+		ae = autoencoder.Autoencoder()
+		hidden_size = 25
+		print self.train_x.shape[1], self.train_y.shape[1]
+		# sys.exit()
+		ae.initialize_net(self.train_x.shape[1],hidden_size,self.train_y.shape[1])
+		ae.fit(self.train_x[:,:],self.train_y[:,:])
 
 	def main(self):
 		self.load_data()
-		self.initialize_parameters()
+		# self.initialize_parameters()
 		self.call_autoencoder()
 
 
