@@ -47,21 +47,37 @@ class Get_Input():
 		training_out = []
 		testing_in = []
 		testing_out = []
+		train_labels = []
+		test_labels = []
+		self.train_label_indices = {}
+		self.test_label_indices = {}
 		# the data will be in alphabetical order based on the 
 		# orthographic label used for the sound
+		train_start_idx = 0
+		test_start_idx = 0
 		for label in sorted(self.label_indices.items()):
+			# Extract label and index from previous label list
 			label = label[0]
 			indices = self.label_indices[label]
+			# Extract num of all 
 			num_of_examples = indices[1] - indices[0] + 1
 			training_num = round(self.training_percent * num_of_examples)
+			self.train_label_indices[label] = (train_start_idx, training_num + train_start_idx)
+			self.test_label_indices[label] = (test_start_idx, (num_of_examples-training_num)+test_start_idx)
+			train_start_idx += training_num
+			test_start_idx += (num_of_examples-training_num)
 			training_in.append(self.in_array[indices[0]:indices[0]+training_num])
 			training_out.append(self.out_array[indices[0]:indices[0]+training_num])
 			testing_in.append(self.in_array[indices[0]+training_num:indices[1]+1])
 			testing_out.append(self.out_array[indices[0]+training_num:indices[1]+1])
+			train_labels.append(self.label_array[indices[0]:indices[0]+training_num])
+			test_labels.append(self.label_array[indices[0]+training_num:indices[1]+1])
 		self.training_in = np.array([i for i in training_in for i in i])
 		self.training_out = np.array([i for i in training_out for i in i])
 		self.testing_in = np.array([ i for i in testing_in for i in i])
 		self.testing_out = np.array([i for i in testing_out for i in i])
+		self.train_labels = np.array([i for i in train_labels for i in i])
+		self.test_labels = np.array([i for i in test_labels for i in i])
 		print self.training_in.shape, self.training_out.shape, self.testing_in.shape, self.testing_out.shape
 
 	def split_labels(self):
