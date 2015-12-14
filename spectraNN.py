@@ -25,9 +25,9 @@ from nolearn.lasagne import NeuralNet
 
 class NetFactory():
 
-	mini_savename = '{}_mini_weights'
-	big_savename = 'big_weights'
-	normal_savename = 'normal_weights'
+	mini_savename = 'weights/{0}_{1}_{2}_mini_weights'
+	big_savename = 'weights/{0}_{1}_big_weights'
+	normal_savename = 'weights/{0}_{1}_normal_weights'
 
 	@classmethod
 	def build_mini_net(cls, input_size=47, hidden_size=3, output_size=1, verbose=False):
@@ -37,9 +37,9 @@ class NetFactory():
 		return NeuralNet(layers=[  
 		('input', layers.InputLayer),
 		('hidden1', layers.DenseLayer),
-		('dropout1', layers.DropoutLayer),
+		# ('dropout1', layers.DropoutLayer),
 		('hidden2', layers.DenseLayer),
-		('dropout2', layers.DropoutLayer),
+		# ('dropout2', layers.DropoutLayer),
 		('hidden3', layers.DenseLayer),
 		('output', layers.DenseLayer),
 		],
@@ -50,8 +50,8 @@ class NetFactory():
 		hidden3_num_units=hidden_size,
 		output_nonlinearity=None,  # output layer uses identity function
 		output_num_units=output_size, 
-		dropout1_p=0.2,
-		dropout2_p=0.5,
+		# dropout1_p=0.2,
+		# dropout2_p=0.5,
 
 		# optimization method:
 		update=updates.nesterov_momentum,
@@ -74,9 +74,9 @@ class NetFactory():
 		return NeuralNet(layers=[  
 		('input', layers.InputLayer),
 		('hidden1', layers.DenseLayer),
-		('dropout1', layers.DropoutLayer),
+		# ('dropout1', layers.DropoutLayer),
 		('hidden2', layers.DenseLayer),
-		('dropout2', layers.DropoutLayer),
+		# ('dropout2', layers.DropoutLayer),
 		('hidden3', layers.DenseLayer),
 		('output', layers.DenseLayer),
 		],
@@ -87,8 +87,8 @@ class NetFactory():
 		hidden3_num_units=hidden_size,
 		output_nonlinearity=None,  # output layer uses identity function
 		output_num_units=output_size,  
-		dropout1_p=0.2,
-		dropout2_p=0.5,
+		# dropout1_p=0.2,
+		# dropout2_p=0.5,
 
 		# optimization method:
 		update=updates.nesterov_momentum,
@@ -104,17 +104,19 @@ class NetFactory():
 		)
 
 	@classmethod
-	def build_normal_net(cls, input_size=47, hidden_size=10, output_size=92, verbose=True):
+	def build_normal_net(cls, input_size=47, hidden_size=25, output_size=92, verbose=True):
 		# returns a NeuralNet instance
 		if verbose:
 			print "Initializing with {0} input nodes, {1} hidden nodes, and {2} output nodes.".format(input_size,hidden_size,output_size)
 		return NeuralNet(layers=[  
 		('input', layers.InputLayer),
 		('hidden1', layers.DenseLayer),
-		('dropout1', layers.DropoutLayer),
+		# ('dropout1', layers.DropoutLayer),
 		('hidden2', layers.DenseLayer),
-		('dropout2', layers.DropoutLayer),
+		# ('dropout2', layers.DropoutLayer),
 		('hidden3', layers.DenseLayer),
+		# ('hidden4', layers.DenseLayer),
+		# ('hidden5', layers.DenseLayer),
 		('output', layers.DenseLayer),
 		],
 		# layer parameters:
@@ -122,10 +124,12 @@ class NetFactory():
 		hidden1_num_units=hidden_size,  # number of units in hidden layer
 		hidden2_num_units=hidden_size,
 		hidden3_num_units=hidden_size,
+		# hidden4_num_units=hidden_size,
+		# hidden5_num_units=hidden_size,
 		output_nonlinearity=None,  # output layer uses identity function
 		output_num_units=output_size,  
-		dropout1_p=0.5,
-		dropout2_p=0.2,
+		# dropout1_p=0.5,
+		# dropout2_p=0.2,
 
 		# optimization method:
 		update=updates.nesterov_momentum,
@@ -160,29 +164,29 @@ class NetFactory():
 
 class HydraNet():
 
-	def __init__(self):
-		pass
+	def __init__(self,hidden_size):
+		self.hidden_size = hidden_size
 
 	def load(self, bignet, mininets):
 		self.bignet = NetFactory.load(bignet)
 		self.mininets = NetFactory.load_mini_nets(mininets)
 
 
-	def fit_specialize(self, X, y):
+	def fit_specialize(self, X, y, freq_range, sounds):
 		# holds the mininet classes in order
 		mininets = []
 		self.input_size = X.shape[-1]
 		self.output_size = y.shape[-1]
 		for i in range(y.shape[1]):
 			# Initialize new Neural Net to predict single column value
-			mn = NetFactory.build_mini_net(input_size=self.input_size,hidden_size=3,output_size=1)
+			mn = NetFactory.build_mini_net(input_size=self.input_size,hidden_size=self.hidden_size,output_size=1)
 			# Reshape the test data to represent a single column
 			new_labels = y[:,i]
 			# Training
 			mn.fit(X, new_labels)
 			# Store the trained net
 			mininets.append(mn)
-			NetFactory.save(mn, NetFactory.mini_savename.format(i))
+			NetFactory.save(mn, NetFactory.mini_savename.format(freq_range, sounds, i))
 		# store fitted mininets
 		self.mininets = mininets
 		print "Making Mini Net predictions"
@@ -190,20 +194,22 @@ class HydraNet():
 		mini_net_predictions = self.mini_nets_predict(X)
 		# Make big papa net
 		print "Training Big Net"
-		big_net = NetFactory.build_big_net(input_size=self.output_size,hidden_size=50,output_size=self.output_size)
+		big_net = NetFactory.build_big_net(input_size=self.output_size,hidden_size=self.hidden_size,output_size=self.output_size)
 		# make a net where num. columns = num. input and output nodes
 		print "Big Net Training Results:\n\n"
 		big_net.fit(mini_net_predictions, y)
-		NetFactory.save(big_net,NetFactory.big_savename)
+		NetFactory.save(big_net,NetFactory.big_savename.format(freq_range, sounds))
 		self.bignet = big_net
 
-	def fit_norm(self, X, y):
+	def fit_norm(self, X, y, freq_range, sounds):
 		print("Build and fit a Normal Net")
 		self.input_size = X.shape[-1]
 		self.output_size = y.shape[-1]
-		normal_net = NetFactory.build_normal_net(input_size=self.input_size,hidden_size=10,output_size=self.output_size)
+		# build the net from the specified framework in NetFactory
+		normal_net = NetFactory.build_normal_net(input_size=self.input_size,hidden_size=self.hidden_size,output_size=self.output_size)
 		normal_net.fit(X,y)
-		NetFactory.save(normal_net,NetFactory.normal_savename)
+		# Save the weight files
+		NetFactory.save(normal_net,NetFactory.normal_savename.format(freq_range, sounds))
 		self.normal_net = normal_net
 		
 
@@ -220,17 +226,18 @@ class HydraNet():
 		return mini_net_predictions
 
 	def predict_specialize(self,X):
-		# papanet input from mininet output predictions
+		# bignet input from mininet output predictions
 		mini_net_predictions = self.mini_nets_predict(X)
 		# return papanet predictions
 		return self.bignet.predict(mini_net_predictions)
 
 	def predict_norm(self,X):
-		# return normal net predictions
+		'''return normal net predictions'''
 		return self.normal_net.predict(X)
 
 	def evalutate(self, predictions, y):
-		# takes the neural net predictions, and compares them with the true y-values
+		''' Takes the neural net predictions, and compares them with the true y-values,
+			outputting a cosine similarity value.'''
 		dot = np.dot(y,predictions.T)
 		numerator = dot.diagonal()
 		denominator = np.linalg.norm(y) * np.linalg.norm(predictions)
@@ -242,6 +249,9 @@ class HydraNet():
 class PlotFunctions():
 	# Contains code to make spectrum plots
 	def __init__(self,path):
+		'''The "_frequency_key.txt" file holds a vector of frequency values that correspond to
+			the amplitude values in the testing input and output.  The number of columns in
+			the concatenation of input and output vectors should equal the number of frequency values.'''
 		with open(os.path.join(path,'_frequency_key.txt'),'r') as datafile:
 			self.freq = np.loadtxt(datafile,dtype='float32')
 		print "Frequency text shape: ", self.freq.shape
@@ -249,41 +259,52 @@ class PlotFunctions():
 		plot.figure(2)
 
 	def plot_real(self,given,output):
+		'''Can take vector or matrix as input for "given" and "output".  There needs to
+			be the same number of rows, if sending matrices, but number of columns can differ.
+			Used to recreate spectral graph.'''
 		plot.figure(1)
 		for i in range(len(given)):
 			y_vals = np.exp(np.concatenate((given[i,:],output[i,:])))
 			plot.plot(self.freq,y_vals)
 		
 	def plot_predict(self,given,predictions):
+		'''Can take vector or matrix as input for "given" and "predictions".  There needs to
+			be the same number of rows, if sending matrices, but number of columns can differ.
+			Used to recreate spectral graph.'''
 		plot.figure(2)
 		for i in range(len(given)):
 			y_vals = np.exp(np.concatenate((given[i,:],predictions[i,:])))
 			plot.plot(self.freq,y_vals)
 		plot.show()
 
-# Used to stop if validation loss stops dropping - to find the best model weights
+
 class EarlyStopping(object):
-    def __init__(self, patience=50):
-        self.patience = patience
-        self.best_valid = np.inf
-        self.best_valid_epoch = 0
-        self.best_weights = None
+	'''Used to stop if validation loss stops dropping - to find the best model weights.  
+	Fairly boilerplate code, no need to modify except the "patience" parameter, which
+	specifies how long after a "best validation loss" was observed to wait for a better
+	validation loss before early stopping.'''
 
-    def __call__(self, nn, train_history):
-        current_valid = train_history[-1]['valid_loss']
-        current_epoch = train_history[-1]['epoch']
-        if current_valid < self.best_valid:
-            self.best_valid = current_valid
-            self.best_valid_epoch = current_epoch
-            self.best_weights = nn.get_all_params_values()
-        elif self.best_valid_epoch + self.patience < current_epoch:
-            print("Early stopping.")
-            print("Best valid loss was {:.6f} at epoch {}.".format(
-                self.best_valid, self.best_valid_epoch))
-            nn.load_params_from(self.best_weights)
-            raise StopIteration()
+	def __init__(self, patience=50):
+		self.patience = patience
+		self.best_valid = np.inf
+		self.best_valid_epoch = 0
+		self.best_weights = None
 
-# Currently not using
+	def __call__(self, nn, train_history):
+		current_valid = train_history[-1]['valid_loss']
+		current_epoch = train_history[-1]['epoch']
+		if current_valid < self.best_valid:
+			self.best_valid = current_valid
+			self.best_valid_epoch = current_epoch
+			self.best_weights = nn.get_all_params_values()
+		elif self.best_valid_epoch + self.patience < current_epoch:
+			print("Early stopping.")
+			print("Best valid loss was {:.6f} at epoch {}.".format(
+				self.best_valid, self.best_valid_epoch))
+		nn.load_params_from(self.best_weights)
+		raise StopIteration()
+
+# Currently not using - intended for updating the learning rate.
 class AdjustVariable(object):
     def __init__(self, name, start=0.03, stop=0.001):
         self.name = name
@@ -300,18 +321,21 @@ class AdjustVariable(object):
 
 class NeuralNetHead():
 
-	def __init__(self,args=sys.argv,net_type='normal',path='../spectra',lowpass='2k',
-				train_perc=0.8,hidden_nodes=25):
+	def __init__(self,args=sys.argv,net_type='normal', lowpass='2k', hidden_nodes=10,
+				path='../spectra',train_perc=0.8):
+		# allow for user input, but specify defaults otherwise
 		self.net_type = sys.argv[1] if len(sys.argv) > 1 else str(net_type) 
-		self.path = sys.argv[2] if len(sys.argv) > 2 else str(path)
-		self.lowpass = sys.argv[3] if len(sys.argv) > 3 else str(lowpass)
-		self.train_perc = sys.argv[4] if len(sys.argv) > 4 else float(train_perc)
-		self.hidden_nodes = sys.argv[5] if len(sys.argv) > 5 else int(hidden_nodes)
+		self.lowpass = sys.argv[2] if len(sys.argv) > 2 else str(lowpass)
+		self.hidden_nodes = int(sys.argv[3]) if len(sys.argv) > 3 else int(hidden_nodes)
+		self.path = sys.argv[4] if len(sys.argv) > 4 else str(path)
+		self.train_perc = float(sys.argv[5]) if len(sys.argv) > 5 else float(train_perc)
+		
 		self.sound_classes = {'vowels':['a','ah'],'liquids':['l','r'],'fricatives':['s','sh'],
 								'stops':['t','k'],'a':['a'],'ah':['ah'],'l':['l'],'r':['r'],
 								's':['s'],'sh':['sh'],'t':['t'],'k':['k']}
 
 	def load_data(self):
+		# Load data using script from get_spectraNN_input.py
 		loadfiles = get_input.Get_Input(self.path,self.lowpass,self.train_perc)
 		self.pre_train_x = np.log(loadfiles.training_in)#[:200,:])
 		self.pre_train_y = np.log(loadfiles.training_out)#[:200,:])
@@ -323,6 +347,8 @@ class NeuralNetHead():
 		self.test_idx = loadfiles.test_label_indices
 
 	def shape_data(self,sounds):
+		# Function which allows user to specify certain sounds which will be used to
+		# generate the model
 		self.train_x = []
 		self.train_y = []
 		self.test_x = []
@@ -336,31 +362,27 @@ class NeuralNetHead():
 			self.test_y += list(self.pre_test_y[self.test_idx[label][0]:self.test_idx[label][1]])
 			self.train_label_subset += list(self.train_labels[self.train_idx[label][0]:self.train_idx[label][1]])
 			self.test_label_subset += list(self.test_labels[self.test_idx[label][0]:self.test_idx[label][1]])
-		self.train_x = np.nan_to_num(np.array(self.train_x))#+[abs(i) for i in np.array(self.train_x)]) / 2
-		self.train_y = np.nan_to_num(np.array(self.train_y))#+[abs(i) for i in np.array(self.train_y)]) / 2
-		self.test_x = np.nan_to_num(np.array(self.test_x))#+[abs(i) for i in np.array(self.test_x)]) / 2
-		self.test_y = np.nan_to_num(np.array(self.test_y))#+[abs(i) for i in np.array(self.test_y)]) / 2
+		self.train_x = np.nan_to_num(np.array(self.train_x))
+		self.train_y = np.nan_to_num(np.array(self.train_y))
+		self.test_x = np.nan_to_num(np.array(self.test_x))
+		self.test_y = np.nan_to_num(np.array(self.test_y))
 		self.train_labels = set(self.train_label_subset)
 		self.test_labels = set(self.test_label_subset)
 
 
 	def train(self):
-		hidden_size = 3
 		self.load_data()
-		# print self.sound_classes['fricatives'], type(self.sound_classes['fricatives'])
-		self.shape_data(self.sound_classes['a'])
-		# l = ['s','sh']
-		# print l, type(l)
-		# self.shape_data(l)
-		# self.shape_data(['l','r','s','sh','k','t','a','ah'])
+		# self.shape_data(self.sound_classes['sh'])
+		sounds = ['l','r','s','sh','k','t','a','ah']
+		self.shape_data(sounds)
 		print "Training a net for the sounds {0}, and testing on the sounds {1}".format(self.train_labels,
 																						self.test_labels)
-		hn = HydraNet()
+		hn = HydraNet(self.hidden_nodes)
 		if self.net_type == 'normal':
-			hn.fit_norm(self.train_x,self.train_y)
+			hn.fit_norm(self.train_x,self.train_y, self.lowpass, sounds)
 			predictions = hn.predict_norm(self.test_x)
 		elif self.net_type == 'specialize':
-			hn.fit_specialize(self.train_x,self.train_y)
+			hn.fit_specialize(self.train_x,self.train_y,self.lowpass, sounds)
 			predictions = hn.predict_specialize(self.test_x)
 		print "Testing Predictions: "
 		hn.evalutate(predictions,self.test_y)
